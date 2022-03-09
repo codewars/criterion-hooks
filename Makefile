@@ -13,5 +13,5 @@ run-example: example-test
 .PHONY: run-example
 
 clean:
-	rm -rf ./criterion ./criterion-hooks.o ./test
+	rm -rf ./criterion ./criterion-hooks.o ./example-test
 .PHONY: clean
