@@ -28,27 +28,31 @@ ReportHook(PRE_TEST)(struct criterion_test *test) {
   printf("\n<IT::>%s\n", test->data->description != NULL ? test->data->description : test->name);
 }
 
+static void print_failure_message(const char* message, const char* default_message) {
+  printf("<FAILED::>");
+  if(default_message && !(message && *message)) {
+    printf("%s", default_message);
+    return;
+  }
+
+  char *dup = strdup(message);
+  char *saveptr = NULL;
+  char *line = strtok_r(dup, "\n", &saveptr);
+  do {
+    printf("%s", line);
+    line = strtok_r(NULL, "\n", &saveptr);
+    if (line) printf("<:LF:>");
+  } while (line);
+  free(dup);
+  puts("");
+}
+
 // ASSERT: occurs when an assertion is hit
 ReportHook(ASSERT)(struct criterion_assert_stats *stats) {
-  if (stats->passed) {
-    puts("\n<PASSED::>Test Passed");
-  } else {
-    if (stats->message && *stats->message) {
-      printf("\n<FAILED::>");
-      char *dup = strdup(stats->message);
-      char *saveptr = NULL;
-      char *line = strtok_r(dup, "\n", &saveptr);
-      do {
-        printf("%s", line);
-        line = strtok_r(NULL, "\n", &saveptr);
-        if (line) printf("<:LF:>");
-      } while (line);
-      free(dup);
-      puts("");
-    } else {
-      puts("\n<FAILED::>Test Failed");
-    }
-  }
+        if(stats->passed) {
+          return;
+        }
+        print_failure_message(stats->message, "Assertion failed");
 }
 
 // THEORY_FAIL: occurs when a theory iteration fails.
@@ -76,9 +80,30 @@ ReportHook(TEST_CRASH)(struct criterion_test_stats *stats) {
   }
 }
 
+
+static void process_failed_test(struct criterion_test_stats *test) {
+
+  // If there is a failed assertion, it most probably got already printed by assertion hook.
+  // Test has already been reported as failed.
+  for(struct criterion_assert_stats *assert = test->asserts; assert; assert = assert->next) {
+    if(!assert->passed) {
+      return;
+    }
+  }
+
+  print_failure_message(test->message, "Test failed");
+}
+
 // POST_TEST: occurs after a test ends, but before the test finalization.
 ReportHook(POST_TEST)(struct criterion_test_stats *stats) {
-  if (stats->timed_out) puts("\n<ERROR::>Test Timed Out");
+
+  if (stats->timed_out) {
+    puts("\n<ERROR::>Test Timed Out");
+  } else if(stats->test_status == CR_STATUS_PASSED) {
+    puts("\n<PASSED::>Test Passed");
+  } else {
+    process_failed_test(stats);
+  }
 
   printf("\n<COMPLETEDIN::>%.4f\n", stats->elapsed_time*1000);
 }
@@ -97,5 +122,6 @@ ReportHook(POST_SUITE)(struct criterion_suite_stats *stats) {
 }
 
 // POST_ALL: occurs after all the tests are done.
+//
 ReportHook(POST_ALL)(CR_UNUSED struct criterion_global_stats *stats) {
 }
