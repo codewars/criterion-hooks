@@ -29,7 +29,7 @@ ReportHook(PRE_TEST)(struct criterion_test *test) {
 }
 
 static void print_failure_message(const char *message, const char *default_message) {
-  printf("<FAILED::>");
+  printf("\n<FAILED::>");
   if (default_message && !(message && *message)) {
     printf("%s", default_message);
     return;
